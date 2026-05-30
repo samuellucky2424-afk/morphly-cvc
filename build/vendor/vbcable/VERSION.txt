@@ -1,0 +1,14 @@
+Package: VB-CABLE Driver Pack
+Source: https://download.vb-audio.com/Download_CABLE/VBCABLE_Driver_Pack45.zip
+Product page: https://vb-audio.com/Cable/
+Licensing page: https://vb-audio.com/Services/licensing.htm
+Downloaded: 2026-05-30
+Archive SHA256: B950E39F01AF1D04EA623C8F6D8EB9B6EA5C477C637295FABF20631C85116BFB
+
+Bundling note:
+This folder contains the official VB-Audio package contents, extracted without
+modifying driver binaries. The bundled installer must keep VB-Audio attribution
+and donationware/licensing notice visible. The included VB-Audio readme states
+that integrating the package into another software installation procedure
+requires author agreement. Do not ship the bundled-driver installer publicly or
+commercially until that agreement is in place.

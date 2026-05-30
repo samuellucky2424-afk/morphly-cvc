@@ -1,0 +1,25 @@
+node_modules/
+dist/
+dist-electron/
+release/
+.env
+.env.local
+.env.*.local
+
+# Runtime/debug output
+logs/
+*.log
+artifacts/
+tmp_dir/
+upload_dir/
+tmp_openapi.json
+
+# Local/backend build caches and model workspaces
+backend/.venv/
+backend/__pycache__/
+backend/downloads/
+backend/voice-changer/
+backend/beatrice-v2/
+backend/voice-mode/
+model_dir/
+settings/

@@ -1,0 +1,88 @@
+{
+  "name": "morphly-voice-dashboard",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "main": "dist-electron/main.cjs",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "build:electron": "esbuild electron/main.ts electron/preload.ts --bundle --platform=node --format=cjs --outdir=dist-electron --out-extension:.js=.cjs --external:electron",
+    "app:dev": "npm run build:electron && set ELECTRON_RENDERER_URL=http://127.0.0.1:5173&& electron .",
+    "dist:win": "npm run build && npm run build:electron && powershell -NoProfile -ExecutionPolicy Bypass -File build/scripts/dist-win.ps1"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.106.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "flutterwave-react-v3": "^1.3.3",
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "vite": "^6.0.7"
+  },
+  "overrides": {
+    "axios": "^1.16.1"
+  },
+  "build": {
+    "appId": "com.morphly.voiceconsole",
+    "productName": "Morphly Voice Console",
+    "asar": true,
+    "directories": {
+      "buildResources": "build",
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "backend",
+        "to": "backend",
+        "filter": [
+          "start_http.bat",
+          "README.md",
+          "sync_voice_mode_models.py",
+          "voice-mode/**/*",
+          "native-client-headless-stub.exe",
+          "vcclient-beatrice/**/*",
+          "!downloads/**/*",
+          "!voice-changer/**/*",
+          "!beatrice-v2/**/*",
+          "!.venv/**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-Setup-${version}.${ext}",
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Morphly Voice Console",
+      "include": "build/installer.nsh"
+    }
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.20",
+    "electron": "^42.2.0",
+    "electron-builder": "^26.8.1",
+    "esbuild": "^0.28.0",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17"
+  }
+}
