@@ -55,7 +55,10 @@ export function getSupabaseAdmin() {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY on the Vercel backend.');
+    const error = new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY on the Vercel backend.');
+    error.status = 500;
+    error.code = 'SUPABASE_ADMIN_CONFIG_MISSING';
+    throw error;
   }
 
   return createClient(supabaseUrl, serviceRoleKey, {
@@ -176,6 +179,6 @@ async function hydrateProfile(supabase, profile) {
 export function handleApiError(res, error) {
   const status = error.status || 500;
   const code = error.code || 'SERVER_ERROR';
-  const message = status >= 500 ? 'The Morphly cloud service could not complete the request.' : error.message;
+  const message = status >= 500 ? error.message || 'The Morphly cloud service could not complete the request.' : error.message;
   sendError(res, status, message, code, status >= 500 ? error.message : undefined);
 }

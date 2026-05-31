@@ -38,7 +38,12 @@ async function apiRequest(path, options = {}) {
   const payload = await response.json().catch(() => ({}));
 
   if (!response.ok || payload?.error) {
-    throw new Error(payload?.error?.message || `Morphly cloud request failed (${response.status}).`);
+    const message = payload?.error?.message || `Morphly cloud request failed (${response.status}).`;
+    const details = payload?.error?.details;
+    const code = payload?.error?.code;
+    const detailText = details && details !== message ? ` Details: ${details}` : '';
+    const codeText = code ? ` (${code})` : '';
+    throw new Error(`${message}${codeText}${detailText}`);
   }
 
   return payload;
