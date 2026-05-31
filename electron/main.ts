@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, session, shell } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import { execFileSync, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync, renameSync, rmSync } from 'node:fs';
 import { extname, join } from 'node:path';
 
 type EngineStatus = {
@@ -79,12 +79,97 @@ function getAppRoot() {
   return existsSync(join(process.cwd(), 'package.json')) ? process.cwd() : app.getAppPath();
 }
 
+function backendHasEngine(backendDir: string) {
+  return (
+    existsSync(join(backendDir, 'vcclient-beatrice', 'dist', 'main', 'main.exe')) ||
+    existsSync(join(backendDir, 'voice-changer', 'start_http.bat')) ||
+    existsSync(join(backendDir, 'voice-changer.exe')) ||
+    existsSync(join(backendDir, 'start_http.local.bat'))
+  );
+}
+
+function getExtractedBackendDir() {
+  return join(app.getPath('userData'), 'backend', app.getVersion());
+}
+
+function extractPackagedBackend() {
+  const archivePath = join(process.resourcesPath, 'backend-payload.zip');
+  const backendDir = getExtractedBackendDir();
+
+  if (backendHasEngine(backendDir)) {
+    return backendDir;
+  }
+
+  if (!existsSync(archivePath)) {
+    throw new Error(`Backend payload archive was not found at ${archivePath}.`);
+  }
+
+  setEngineStatus({
+    healthy: false,
+    ready: false,
+    started: false,
+    crashed: false,
+    pid: null,
+    message: 'Preparing voice engine...',
+    error: null,
+  });
+
+  const parentDir = join(app.getPath('userData'), 'backend');
+  const tempDir = join(parentDir, `${app.getVersion()}-extracting`);
+
+  rmSync(tempDir, { recursive: true, force: true });
+  rmSync(backendDir, { recursive: true, force: true });
+  mkdirSync(tempDir, { recursive: true });
+
+  try {
+    execFileSync('tar.exe', ['-xf', archivePath, '-C', tempDir], {
+      stdio: 'ignore',
+      windowsHide: true,
+    });
+    renameSync(tempDir, backendDir);
+  } catch (error) {
+    rmSync(tempDir, { recursive: true, force: true });
+    throw error;
+  }
+
+  if (!backendHasEngine(backendDir)) {
+    throw new Error('The extracted backend payload does not contain a runnable voice engine.');
+  }
+
+  return backendDir;
+}
+
 function getBackendDir() {
-  return app.isPackaged ? join(process.resourcesPath, 'backend') : join(getAppRoot(), 'backend');
+  if (!app.isPackaged) {
+    return join(getAppRoot(), 'backend');
+  }
+
+  const legacyResourceBackend = join(process.resourcesPath, 'backend');
+  if (backendHasEngine(legacyResourceBackend)) {
+    return legacyResourceBackend;
+  }
+
+  return extractPackagedBackend();
 }
 
 function getBackendLauncher() {
-  const backendDir = getBackendDir();
+  let backendDir = '';
+
+  try {
+    backendDir = getBackendDir();
+  } catch (error) {
+    setEngineStatus({
+      healthy: false,
+      ready: false,
+      started: false,
+      crashed: false,
+      pid: null,
+      message: 'Voice engine is not installed.',
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+
   const candidates = ['start_http.bat', 'start_http.cmd', 'start_http.exe', 'voice-changer.exe'];
   const launcher = candidates.map((file) => join(backendDir, file)).find((file) => existsSync(file));
 

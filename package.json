@@ -2,7 +2,7 @@
   "name": "morphly-voice-dashboard",
   "private": true,
   "type": "module",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "main": "dist-electron/main.cjs",
   "engines": {
     "node": "22.x"
@@ -45,20 +45,8 @@
     ],
     "extraResources": [
       {
-        "from": "backend",
-        "to": "backend",
-        "filter": [
-          "start_http.bat",
-          "README.md",
-          "sync_voice_mode_models.py",
-          "voice-mode/**/*",
-          "native-client-headless-stub.exe",
-          "vcclient-beatrice/**/*",
-          "!downloads/**/*",
-          "!voice-changer/**/*",
-          "!beatrice-v2/**/*",
-          "!.venv/**/*"
-        ]
+        "from": "build/backend-payload.zip",
+        "to": "backend-payload.zip"
       }
     ],
     "win": {

@@ -6,6 +6,7 @@ vercel-dist/
 public/*
 !public/.gitkeep
 release/
+build/backend-payload.zip
 .env
 .env.local
 .env.*.local
