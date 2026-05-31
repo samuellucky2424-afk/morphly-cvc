@@ -1,6 +1,9 @@
 {
   "private": true,
   "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "build": "npm run build:vercel",
     "build:vercel": "node ../build/scripts/vercel-root-wrapper.mjs"
