@@ -22,6 +22,16 @@ body {
   background: #080b10;
 }
 
+.electron-drag-region {
+  -webkit-app-region: drag;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 138px;
+  height: 34px;
+  z-index: 80;
+}
+
 button,
 input,
 select {

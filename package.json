@@ -2,7 +2,7 @@
   "name": "morphly-voice-dashboard",
   "private": true,
   "type": "module",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "main": "dist-electron/main.cjs",
   "engines": {
     "node": "22.x"
@@ -32,6 +32,7 @@
   "build": {
     "appId": "com.morphly.voiceconsole",
     "productName": "Morphly Voice Console",
+    "icon": "build/icon.png",
     "asar": true,
     "compression": "store",
     "directories": {
@@ -47,9 +48,18 @@
       {
         "from": "build/backend-payload.zip",
         "to": "backend-payload.zip"
+      },
+      {
+        "from": "build/icon.ico",
+        "to": "icon.ico"
+      },
+      {
+        "from": "build/icon.png",
+        "to": "icon.png"
       }
     ],
     "win": {
+      "icon": "build/icon.ico",
       "target": [
         {
           "target": "nsis",

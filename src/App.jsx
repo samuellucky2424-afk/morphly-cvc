@@ -229,6 +229,7 @@ function findFirstInputDevice(devices) {
 }
 
 function App() {
+  const isDesktopShell = typeof window !== 'undefined' && Boolean(window.electronAPI);
   const {
     user,
     subscription,
@@ -1076,7 +1077,8 @@ function App() {
   };
 
   return (
-    <main className="app-shell h-screen w-screen overflow-hidden text-slate-100">
+    <main className={`app-shell h-screen w-screen overflow-hidden text-slate-100 ${isDesktopShell ? 'pt-[34px]' : ''}`}>
+      {isDesktopShell && <div className="electron-drag-region" aria-hidden="true" />}
       <div className="flex h-full">
         <aside className={`flex shrink-0 flex-col border-r border-white/10 bg-black/28 px-3 py-4 transition-all duration-300 ${isSidebarCollapsed ? 'w-16' : 'w-56'}`}>
           <div className="mb-6 flex items-center justify-between px-1">

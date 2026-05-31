@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, session, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, nativeTheme, session, shell } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import { execFileSync, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { existsSync, mkdirSync, renameSync, rmSync } from 'node:fs';
@@ -77,6 +77,15 @@ function getAppRoot() {
   }
 
   return existsSync(join(process.cwd(), 'package.json')) ? process.cwd() : app.getAppPath();
+}
+
+function getWindowIconPath() {
+  const iconName = process.platform === 'win32' ? 'icon.ico' : 'icon.png';
+  const candidates = app.isPackaged
+    ? [join(process.resourcesPath, iconName)]
+    : [join(getAppRoot(), 'build', iconName)];
+
+  return candidates.find((candidate) => existsSync(candidate));
 }
 
 function backendHasEngine(backendDir: string) {
@@ -336,7 +345,7 @@ function loadingHtml() {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Morphly Voice Console</title>
+    <title>MVC</title>
     <style>
       html, body {
         height: 100%;
@@ -348,6 +357,8 @@ function loadingHtml() {
       body {
         display: grid;
         place-items: center;
+        box-sizing: border-box;
+        padding-top: 34px;
         background:
           linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
           linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px),
@@ -406,9 +417,18 @@ function loadingHtml() {
         font-size: 12px;
         margin-top: 14px;
       }
+      .drag-region {
+        -webkit-app-region: drag;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 138px;
+        height: 34px;
+      }
     </style>
   </head>
   <body>
+    <div class="drag-region" aria-hidden="true"></div>
     <main class="shell">
       <div class="brand">Morphly</div>
       <h1 id="message">Starting voice engine...</h1>
@@ -439,14 +459,24 @@ function updateLoadingScreen(message: string, detail = '') {
 }
 
 function createMainWindow() {
+  const windowIcon = getWindowIconPath();
+
   mainWindow = new BrowserWindow({
     width: 1320,
     height: 860,
     minWidth: 1180,
     minHeight: 720,
     show: false,
-    title: 'Morphly Voice Console',
+    title: 'MVC',
+    autoHideMenuBar: true,
     backgroundColor: '#080b10',
+    titleBarStyle: 'hidden',
+    titleBarOverlay: {
+      color: '#080b10',
+      symbolColor: '#e2e8f0',
+      height: 34,
+    },
+    ...(windowIcon ? { icon: windowIcon } : {}),
     webPreferences: {
       preload: getPreloadPath(),
       contextIsolation: true,
@@ -454,6 +484,8 @@ function createMainWindow() {
       sandbox: false,
     },
   });
+
+  mainWindow.setMenuBarVisibility(false);
 
   mainWindow.once('ready-to-show', () => {
     mainWindow?.show();
@@ -855,6 +887,8 @@ ipcMain.handle('engine:request', async (_event, path: string, options: RequestIn
 });
 
 app.whenReady().then(() => {
+  nativeTheme.themeSource = 'dark';
+  Menu.setApplicationMenu(null);
   configureAutoUpdater();
 
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
