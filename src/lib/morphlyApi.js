@@ -1,6 +1,7 @@
 import { requireSupabase } from './supabaseClient';
+import { DEFAULT_MORPHLY_API_URL } from '../config/publicRuntimeConfig';
 
-const apiBaseUrl = (import.meta.env.VITE_MORPHLY_API_URL || '').replace(/\/+$/, '');
+const apiBaseUrl = (import.meta.env.VITE_MORPHLY_API_URL || DEFAULT_MORPHLY_API_URL).replace(/\/+$/, '');
 
 export const isMorphlyApiConfigured = Boolean(apiBaseUrl);
 export const CREDITS_PER_STARTED_MINUTE = 2;

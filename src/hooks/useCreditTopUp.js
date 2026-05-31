@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { closePaymentModal, useFlutterwave } from 'flutterwave-react-v3';
+import { DEFAULT_FLUTTERWAVE_PUBLIC_KEY } from '../config/publicRuntimeConfig';
 import { createCreditCheckout, isMorphlyApiConfigured, verifyCreditPayment } from '../lib/morphlyApi';
 
-const flutterwavePublicKey = import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY || '';
+const flutterwavePublicKey = import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY || DEFAULT_FLUTTERWAVE_PUBLIC_KEY;
 
 export function useCreditTopUp({ user, displayName, displayEmail, onPaymentSuccess, onPaymentError, onPaymentClosed }) {
   const [checkoutRequest, setCheckoutRequest] = useState(null);
