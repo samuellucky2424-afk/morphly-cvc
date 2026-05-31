@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "npm run build:vercel",
+    "build:vercel": "node ../build/scripts/vercel-root-wrapper.mjs"
+  }
+}
