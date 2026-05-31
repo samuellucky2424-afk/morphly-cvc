@@ -8,6 +8,17 @@ const COLUMN_CHECKS = {
   usage_sessionw: 'id,user_id,status,started_at,ended_at,last_billed_at,billed_minutes,credits_spent,created_at,updated_at',
 };
 
+function supabaseProjectRef() {
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+
+  try {
+    const host = new URL(supabaseUrl).hostname;
+    return host.endsWith('.supabase.co') ? host.replace('.supabase.co', '') : host;
+  } catch {
+    return '';
+  }
+}
+
 async function checkSupabase() {
   const result = {};
 
@@ -65,6 +76,7 @@ export default async function handler(req, res) {
     service: 'morphly-api',
     config: {
       supabaseUrl: Boolean(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL),
+      supabaseProjectRef: supabaseProjectRef(),
       supabaseServiceRole: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
       flutterwavePublicKey: Boolean(process.env.FLUTTERWAVE_PUBLIC_KEY),
       flutterwaveSecretKey: Boolean(process.env.FLUTTERWAVE_SECRET_KEY),

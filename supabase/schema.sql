@@ -547,3 +547,14 @@ where not exists (
   from public.subscriptionw s
   where s.user_id = u.id
 );
+
+grant usage on schema public to service_role;
+grant select, insert, update, delete on table public.userw to service_role;
+grant select, insert, update, delete on table public.walletw to service_role;
+grant select, insert, update, delete on table public.creditw to service_role;
+grant select, insert, update, delete on table public.subscriptionw to service_role;
+grant select, insert, update, delete on table public.paymentw to service_role;
+grant select, insert, update, delete on table public.usage_sessionw to service_role;
+grant execute on all functions in schema public to service_role;
+
+notify pgrst, 'reload schema';
