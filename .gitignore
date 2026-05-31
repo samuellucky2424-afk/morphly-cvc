@@ -1,6 +1,7 @@
 node_modules/
 dist/
 dist-electron/
+vercel-dist/
 release/
 .env
 .env.local
