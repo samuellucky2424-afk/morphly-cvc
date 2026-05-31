@@ -2,7 +2,6 @@ import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { build as esbuild } from 'esbuild';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, '../..');
@@ -43,6 +42,7 @@ function run(command, args, cwd) {
 console.log(`Running Morphly Vercel build from repo root: ${repoRoot}`);
 run(npm, ['install'], repoRoot);
 run(npm, ['run', 'build'], repoRoot);
+const { build: esbuild } = await import('esbuild');
 
 const distOutput = resolve(repoRoot, 'dist');
 if (!existsSync(resolve(distOutput, 'index.html'))) {
