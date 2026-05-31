@@ -43,6 +43,7 @@ let healthFailures = 0;
 let lastBackendStartAt = 0;
 let engineControlInFlightUntil = 0;
 let updateCheckInFlight = false;
+let backendOutputTail = '';
 
 let engineStatus: EngineStatus = {
   healthy: false,
@@ -114,6 +115,20 @@ function setUpdateStatus(patch: Partial<UpdateStatus>) {
   };
 
   mainWindow?.webContents.send('update-status', updateStatus);
+}
+
+function appendBackendOutput(text: string) {
+  backendOutputTail = `${backendOutputTail}${text}`.replace(/\r/g, '');
+
+  if (backendOutputTail.length > 2400) {
+    backendOutputTail = backendOutputTail.slice(-2400);
+  }
+}
+
+function backendExitDetail(reason: string) {
+  const output = backendOutputTail.trim();
+
+  return output ? `${reason}\n${output}` : reason;
 }
 
 function configureAutoUpdater() {
@@ -331,8 +346,10 @@ function updateLoadingScreen(message: string, detail = '') {
     return;
   }
 
+  const safeDetail = detail.length > 900 ? `${detail.slice(0, 900)}...` : detail;
+
   mainWindow.webContents
-    .executeJavaScript(`window.setEngineState(${JSON.stringify({ message, detail })})`)
+    .executeJavaScript(`window.setEngineState(${JSON.stringify({ message, detail: safeDetail })})`)
     .catch(() => undefined);
 }
 
@@ -370,6 +387,7 @@ function startBackend() {
   }
 
   engineProcess = null;
+  backendOutputTail = '';
   lastBackendStartAt = Date.now();
 
   const backend = getBackendLauncher();
@@ -401,8 +419,16 @@ function startBackend() {
       PYTHONUTF8: '1',
       PYTHONIOENCODING: 'utf-8',
     },
-    stdio: 'ignore',
+    stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
+  });
+
+  engineProcess.stdout.on('data', (chunk) => {
+    appendBackendOutput(chunk.toString());
+  });
+
+  engineProcess.stderr.on('data', (chunk) => {
+    appendBackendOutput(chunk.toString());
   });
 
   setEngineStatus({
@@ -423,7 +449,7 @@ function startBackend() {
       message: 'Voice engine failed to launch.',
       error: error.message,
     });
-    scheduleBackendRestart(error.message);
+    scheduleBackendRestart(backendExitDetail(error.message));
   });
 
   engineProcess.on('exit', (code, signal) => {
@@ -438,9 +464,9 @@ function startBackend() {
       ready: false,
       crashed: true,
       message: 'Voice engine stopped unexpectedly.',
-      error: `Exit code ${code ?? 'unknown'}${signal ? `, signal ${signal}` : ''}.`,
+      error: backendExitDetail(`Exit code ${code ?? 'unknown'}${signal ? `, signal ${signal}` : ''}.`),
     });
-    scheduleBackendRestart(`Exit code ${code ?? 'unknown'}${signal ? `, signal ${signal}` : ''}.`);
+    scheduleBackendRestart(backendExitDetail(`Exit code ${code ?? 'unknown'}${signal ? `, signal ${signal}` : ''}.`));
   });
 }
 

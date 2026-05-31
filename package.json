@@ -2,7 +2,7 @@
   "name": "morphly-voice-dashboard",
   "private": true,
   "type": "module",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "main": "dist-electron/main.cjs",
   "engines": {
     "node": "22.x"
@@ -33,6 +33,7 @@
     "appId": "com.morphly.voiceconsole",
     "productName": "Morphly Voice Console",
     "asar": true,
+    "compression": "store",
     "directories": {
       "buildResources": "build",
       "output": "release"
