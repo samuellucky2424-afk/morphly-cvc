@@ -30,6 +30,8 @@ jobs:
       - name: Build Windows installer
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MORPHLY_BACKEND_PAYLOAD_URL: ${{ secrets.MORPHLY_BACKEND_PAYLOAD_URL }}
+          MORPHLY_BACKEND_PAYLOAD_AUTH_HEADER: ${{ secrets.MORPHLY_BACKEND_PAYLOAD_AUTH_HEADER }}
         run: npm run dist:win
 
       - name: Publish GitHub release
