@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, session, shell } from 'electron';
+import { autoUpdater } from 'electron-updater';
 import { execFileSync, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { extname, join } from 'node:path';
@@ -12,6 +13,17 @@ type EngineStatus = {
   message: string;
   lastCheckedAt: string | null;
   error: string | null;
+};
+
+type UpdateStatus = {
+  state: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'not-available' | 'error';
+  currentVersion: string;
+  latestVersion: string | null;
+  percent: number | null;
+  canInstall: boolean;
+  message: string;
+  error: string | null;
+  lastCheckedAt: string | null;
 };
 
 const engineUrl = process.env.MORPHLY_ENGINE_URL || 'http://127.0.0.1:18000';
@@ -30,6 +42,7 @@ let watchdogTimer: ReturnType<typeof setInterval> | null = null;
 let healthFailures = 0;
 let lastBackendStartAt = 0;
 let engineControlInFlightUntil = 0;
+let updateCheckInFlight = false;
 
 let engineStatus: EngineStatus = {
   healthy: false,
@@ -40,6 +53,17 @@ let engineStatus: EngineStatus = {
   message: 'Starting voice engine...',
   lastCheckedAt: null,
   error: null,
+};
+
+let updateStatus: UpdateStatus = {
+  state: 'idle',
+  currentVersion: app.getVersion(),
+  latestVersion: null,
+  percent: null,
+  canInstall: false,
+  message: 'Ready to check for updates.',
+  error: null,
+  lastCheckedAt: null,
 };
 
 function getPreloadPath() {
@@ -79,6 +103,131 @@ function setEngineStatus(patch: Partial<EngineStatus>) {
 
   mainWindow?.webContents.send('engine-status', engineStatus);
   updateLoadingScreen(engineStatus.message, engineStatus.error || '');
+}
+
+function setUpdateStatus(patch: Partial<UpdateStatus>) {
+  updateStatus = {
+    ...updateStatus,
+    ...patch,
+    currentVersion: app.getVersion(),
+    lastCheckedAt: new Date().toISOString(),
+  };
+
+  mainWindow?.webContents.send('update-status', updateStatus);
+}
+
+function configureAutoUpdater() {
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = false;
+
+  autoUpdater.on('checking-for-update', () => {
+    setUpdateStatus({
+      state: 'checking',
+      percent: null,
+      canInstall: false,
+      message: 'Checking for the latest Morphly release...',
+      error: null,
+    });
+  });
+
+  autoUpdater.on('update-available', (info) => {
+    setUpdateStatus({
+      state: 'available',
+      latestVersion: info.version || null,
+      percent: 0,
+      canInstall: false,
+      message: `Morphly ${info.version} is available. Downloading update...`,
+      error: null,
+    });
+  });
+
+  autoUpdater.on('download-progress', (progress) => {
+    setUpdateStatus({
+      state: 'downloading',
+      percent: Math.max(0, Math.min(100, progress.percent || 0)),
+      canInstall: false,
+      message: 'Downloading the latest Morphly installer...',
+      error: null,
+    });
+  });
+
+  autoUpdater.on('update-not-available', (info) => {
+    setUpdateStatus({
+      state: 'not-available',
+      latestVersion: info.version || app.getVersion(),
+      percent: null,
+      canInstall: false,
+      message: 'Morphly is up to date.',
+      error: null,
+    });
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    setUpdateStatus({
+      state: 'downloaded',
+      latestVersion: info.version || null,
+      percent: 100,
+      canInstall: true,
+      message: 'Update downloaded. Reinstall to finish the upgrade.',
+      error: null,
+    });
+  });
+
+  autoUpdater.on('error', (error) => {
+    updateCheckInFlight = false;
+    setUpdateStatus({
+      state: 'error',
+      percent: null,
+      canInstall: false,
+      message: 'Could not check for updates.',
+      error: error.message,
+    });
+  });
+}
+
+async function checkForAppUpdates() {
+  if (!app.isPackaged) {
+    setUpdateStatus({
+      state: 'not-available',
+      percent: null,
+      canInstall: false,
+      message: 'Update checks are available in the installed Morphly app.',
+      error: null,
+    });
+    return updateStatus;
+  }
+
+  if (updateCheckInFlight) {
+    return updateStatus;
+  }
+
+  if (updateStatus.state === 'available' || updateStatus.state === 'downloading' || updateStatus.state === 'downloaded') {
+    return updateStatus;
+  }
+
+  updateCheckInFlight = true;
+
+  try {
+    await autoUpdater.checkForUpdates();
+    return updateStatus;
+  } finally {
+    updateCheckInFlight = false;
+  }
+}
+
+function installDownloadedUpdate() {
+  if (!updateStatus.canInstall) {
+    throw new Error('No downloaded update is ready to install.');
+  }
+
+  setUpdateStatus({
+    message: 'Restarting Morphly to install the update...',
+    error: null,
+  });
+  isQuitting = true;
+  shutdownBackend();
+  autoUpdater.quitAndInstall(false, true);
+  return true;
 }
 
 function loadingHtml() {
@@ -503,6 +652,10 @@ function shutdownBackend() {
 
 ipcMain.handle('engine:get-status', () => engineStatus);
 ipcMain.handle('engine:ensure-running', () => ensureBackendRunning());
+ipcMain.handle('app:get-version', () => app.getVersion());
+ipcMain.handle('update:get-status', () => updateStatus);
+ipcMain.handle('update:check', () => checkForAppUpdates());
+ipcMain.handle('update:install', () => installDownloadedUpdate());
 ipcMain.handle('app:open-external', async (_event, url: string) => {
   const allowedUrls = new Set(['https://vb-audio.com/Cable/']);
 
@@ -591,6 +744,8 @@ ipcMain.handle('engine:request', async (_event, path: string, options: RequestIn
 });
 
 app.whenReady().then(() => {
+  configureAutoUpdater();
+
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
     callback(permission === 'media' || permission === 'speaker-selection');
   });
@@ -602,6 +757,9 @@ app.whenReady().then(() => {
   createMainWindow();
   startEngineWatchdog();
   waitForBackendAndLoadRenderer();
+  setTimeout(() => {
+    void checkForAppUpdates();
+  }, 12_000);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

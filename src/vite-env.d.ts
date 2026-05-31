@@ -13,6 +13,19 @@ interface Window {
       error: string | null;
     }>;
     ensureEngineRunning?: () => Promise<unknown>;
+    getAppVersion?: () => Promise<string>;
+    getUpdateStatus?: () => Promise<{
+      state: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'not-available' | 'error';
+      currentVersion: string;
+      latestVersion: string | null;
+      percent: number | null;
+      canInstall: boolean;
+      message: string;
+      error: string | null;
+      lastCheckedAt: string | null;
+    }>;
+    checkForUpdates?: () => Promise<unknown>;
+    installUpdate?: () => Promise<boolean>;
     openExternal?: (url: string) => Promise<boolean>;
     engineUploadFile?: (
       filename: string,
@@ -37,5 +50,6 @@ interface Window {
       text: string;
     }>;
     onEngineStatus?: (callback: (status: unknown) => void) => () => void;
+    onUpdateStatus?: (callback: (status: unknown) => void) => () => void;
   };
 }

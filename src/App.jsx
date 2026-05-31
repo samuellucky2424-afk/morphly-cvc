@@ -71,6 +71,28 @@ const emptyVoiceModel = {
   voiceGenderLabel: 'Unlabeled',
 };
 
+const defaultUpdateStatus = {
+  state: 'idle',
+  currentVersion: '',
+  latestVersion: null,
+  percent: null,
+  canInstall: false,
+  message: 'Ready to check for updates.',
+  error: null,
+  lastCheckedAt: null,
+};
+
+function normalizeUpdateStatus(status) {
+  if (!status || typeof status !== 'object') {
+    return defaultUpdateStatus;
+  }
+
+  return {
+    ...defaultUpdateStatus,
+    ...status,
+  };
+}
+
 function decorateVoiceModel(model, index) {
   const color =
     model.voiceGender === 'female'
@@ -2050,12 +2072,33 @@ const CreditsView = memo(function CreditsView({ credits, subscription, hasActive
 
 function SettingsView({ displayName, displayEmail, credits, subscription, voiceModels, preferences, setPreferences, saveProfile, showToast }) {
   const [profileForm, setProfileForm] = useState({ name: displayName, email: displayEmail });
+  const [updateStatus, setUpdateStatus] = useState(defaultUpdateStatus);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
   const hasActiveUnlimited = isUnlimitedSubscriptionActive(subscription);
   const subscriptionExpiry = formatSubscriptionDate(subscription?.current_period_end);
+  const updaterAvailable = Boolean(window.electronAPI?.checkForUpdates);
 
   useEffect(() => {
     setProfileForm({ name: displayName, email: displayEmail });
   }, [displayEmail, displayName]);
+
+  useEffect(() => {
+    let mounted = true;
+    window.electronAPI?.getUpdateStatus?.().then((status) => {
+      if (mounted) {
+        setUpdateStatus(normalizeUpdateStatus(status));
+      }
+    }).catch(() => undefined);
+
+    const unsubscribe = window.electronAPI?.onUpdateStatus?.((status) => {
+      setUpdateStatus(normalizeUpdateStatus(status));
+    });
+
+    return () => {
+      mounted = false;
+      unsubscribe?.();
+    };
+  }, []);
 
   const save = async () => {
     try {
@@ -2063,6 +2106,32 @@ function SettingsView({ displayName, displayEmail, credits, subscription, voiceM
       showToast('Profile updated.', 'success');
     } catch (error) {
       showToast(error.message || 'Unable to update profile.', 'error');
+    }
+  };
+
+  const checkForUpdates = async () => {
+    if (!window.electronAPI?.checkForUpdates) {
+      showToast('Update checks are available in the desktop app.', 'error');
+      return;
+    }
+
+    setCheckingUpdate(true);
+    try {
+      const status = normalizeUpdateStatus(await window.electronAPI.checkForUpdates());
+      setUpdateStatus(status);
+      showToast(status.message || 'Update check finished.', status.state === 'error' ? 'error' : 'info');
+    } catch (error) {
+      showToast(error.message || 'Unable to check for updates.', 'error');
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
+
+  const installUpdate = async () => {
+    try {
+      await window.electronAPI?.installUpdate?.();
+    } catch (error) {
+      showToast(error.message || 'No downloaded update is ready to install.', 'error');
     }
   };
 
@@ -2142,7 +2211,76 @@ function SettingsView({ displayName, displayEmail, credits, subscription, voiceM
             ))}
           </select>
         </label>
+        <UpdateStatusPanel
+          status={updateStatus}
+          checking={checkingUpdate}
+          updaterAvailable={updaterAvailable}
+          onCheck={checkForUpdates}
+          onInstall={installUpdate}
+        />
       </section>
+    </div>
+  );
+}
+
+function UpdateStatusPanel({ status, checking, updaterAvailable, onCheck, onInstall }) {
+  const state = status?.state || 'idle';
+  const percent = Number(status?.percent);
+  const showProgress = Number.isFinite(percent) && (state === 'available' || state === 'downloading' || state === 'downloaded');
+  const checkDisabled = checking || state === 'checking' || state === 'available' || state === 'downloading';
+  const badgeClass =
+    state === 'downloaded'
+      ? 'border-lime-300/25 bg-lime-300/10 text-lime-100'
+      : state === 'error'
+        ? 'border-rose-300/25 bg-rose-300/10 text-rose-100'
+        : state === 'not-available'
+          ? 'border-teal-300/25 bg-teal-300/10 text-teal-100'
+          : 'border-amber-300/25 bg-amber-300/10 text-amber-100';
+
+  return (
+    <div className="mt-4 border-t border-white/10 pt-4">
+      <div className="mb-2.5 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <RefreshCw size={14} className="text-teal-200" />
+            <h3 className="text-xs font-semibold">Version Updates</h3>
+          </div>
+          <p className="mt-1 text-[10px] text-slate-500">Installed version {status?.currentVersion || 'desktop build'}</p>
+        </div>
+        <span className={`shrink-0 rounded border px-2 py-0.5 text-[10px] font-medium capitalize ${badgeClass}`}>
+          {state.replace('-', ' ')}
+        </span>
+      </div>
+      <p className="min-h-8 text-xs leading-5 text-slate-300">{updaterAvailable ? status?.error || status?.message : 'Update checks are available after installing Morphly on Windows.'}</p>
+      {status?.latestVersion && (
+        <p className="mt-1 text-[10px] text-slate-500">Latest version {status.latestVersion}</p>
+      )}
+      {showProgress && (
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-800">
+          <div className="h-full rounded-full bg-teal-300 transition-all" style={{ width: `${Math.max(0, Math.min(100, percent))}%` }} />
+        </div>
+      )}
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={onCheck}
+          disabled={!updaterAvailable || checkDisabled}
+          className="flex h-8 items-center gap-1.5 rounded border border-white/10 px-3 text-xs font-medium text-slate-200 transition hover:bg-white/[0.05] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <RefreshCw size={13} className={checking || state === 'checking' || state === 'downloading' ? 'animate-spin' : ''} />
+          {state === 'downloading' ? 'Downloading' : checking || state === 'checking' ? 'Checking' : 'Check Latest'}
+        </button>
+        {status?.canInstall && (
+          <button
+            type="button"
+            onClick={onInstall}
+            className="flex h-8 items-center gap-1.5 rounded bg-lime-200 px-3 text-xs font-semibold text-slate-950 transition hover:bg-lime-100"
+          >
+            <Power size={13} />
+            Reinstall Update
+          </button>
+        )}
+      </div>
     </div>
   );
 }
