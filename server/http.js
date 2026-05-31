@@ -50,6 +50,26 @@ export async function readJsonBody(req) {
   return {};
 }
 
+function decodeJwtPayload(token) {
+  const payload = token?.split('.')?.[1];
+
+  if (!payload) {
+    return null;
+  }
+
+  try {
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = `${normalized}${'='.repeat((4 - (normalized.length % 4)) % 4)}`;
+    return JSON.parse(Buffer.from(padded, 'base64').toString('utf8'));
+  } catch {
+    return null;
+  }
+}
+
+export function supabaseServiceKeyRole() {
+  return decodeJwtPayload(process.env.SUPABASE_SERVICE_ROLE_KEY)?.role || '';
+}
+
 export function getSupabaseAdmin() {
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -58,6 +78,14 @@ export function getSupabaseAdmin() {
     const error = new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY on the Vercel backend.');
     error.status = 500;
     error.code = 'SUPABASE_ADMIN_CONFIG_MISSING';
+    throw error;
+  }
+
+  const serviceKeyRole = supabaseServiceKeyRole();
+  if (serviceKeyRole && serviceKeyRole !== 'service_role') {
+    const error = new Error(`SUPABASE_SERVICE_ROLE_KEY is configured with a "${serviceKeyRole}" JWT. Use the Supabase service_role secret key on Vercel, not the anon/public key.`);
+    error.status = 500;
+    error.code = 'SUPABASE_SERVICE_ROLE_KEY_INVALID_ROLE';
     throw error;
   }
 

@@ -1,4 +1,4 @@
-import { getSupabaseAdmin, handleOptions, setCors, sendJson } from '../server/http.js';
+import { getSupabaseAdmin, handleOptions, setCors, sendJson, supabaseServiceKeyRole } from '../server/http.js';
 
 const TABLE_CHECKS = ['userw', 'walletw', 'creditw', 'subscriptionw', 'paymentw', 'usage_sessionw'];
 const COLUMN_CHECKS = {
@@ -78,6 +78,8 @@ export default async function handler(req, res) {
       supabaseUrl: Boolean(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL),
       supabaseProjectRef: supabaseProjectRef(),
       supabaseServiceRole: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+      supabaseServiceRoleKeyRole: supabaseServiceKeyRole() || 'unreadable',
+      supabaseServiceRoleKeyValid: supabaseServiceKeyRole() === 'service_role',
       flutterwavePublicKey: Boolean(process.env.FLUTTERWAVE_PUBLIC_KEY),
       flutterwaveSecretKey: Boolean(process.env.FLUTTERWAVE_SECRET_KEY),
     },
