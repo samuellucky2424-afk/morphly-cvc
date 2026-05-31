@@ -3,7 +3,7 @@
   "version": 2,
   "installCommand": "npm install",
   "buildCommand": "npm run build:vercel",
-  "outputDirectory": "vercel-dist",
+  "outputDirectory": "public",
   "functions": {
     "api/**/*.js": {
       "runtime": "nodejs20.x"

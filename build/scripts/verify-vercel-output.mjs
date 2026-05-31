@@ -1,7 +1,7 @@
 import { existsSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-const outputDir = resolve('vercel-dist');
+const outputDir = resolve('public');
 const indexPath = resolve(outputDir, 'index.html');
 
 if (!existsSync(outputDir) || !existsSync(indexPath)) {
