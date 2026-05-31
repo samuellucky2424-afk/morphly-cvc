@@ -13,7 +13,22 @@ grant select, insert, update, delete on table public.subscriptionw to service_ro
 grant select, insert, update, delete on table public.paymentw to service_role;
 grant select, insert, update, delete on table public.usage_sessionw to service_role;
 
-grant execute on function public.apply_flutterwave_paymentw(uuid, text, numeric, text, integer, integer, text, text, jsonb) to service_role;
-grant execute on function public.start_voice_usagew(uuid, integer) to service_role;
-grant execute on function public.bill_voice_usagew(uuid, uuid, integer) to service_role;
-grant execute on function public.stop_voice_usagew(uuid, uuid) to service_role;
+do $$
+begin
+  if to_regprocedure('public.apply_flutterwave_paymentw(uuid,text,numeric,text,integer,integer,text,text,jsonb)') is not null then
+    grant execute on function public.apply_flutterwave_paymentw(uuid, text, numeric, text, integer, integer, text, text, jsonb) to service_role;
+  end if;
+
+  if to_regprocedure('public.start_voice_usagew(uuid,integer)') is not null then
+    grant execute on function public.start_voice_usagew(uuid, integer) to service_role;
+  end if;
+
+  if to_regprocedure('public.bill_voice_usagew(uuid,uuid,integer)') is not null then
+    grant execute on function public.bill_voice_usagew(uuid, uuid, integer) to service_role;
+  end if;
+
+  if to_regprocedure('public.stop_voice_usagew(uuid,uuid)') is not null then
+    grant execute on function public.stop_voice_usagew(uuid, uuid) to service_role;
+  end if;
+end;
+$$;
