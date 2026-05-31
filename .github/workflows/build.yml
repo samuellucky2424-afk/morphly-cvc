@@ -38,6 +38,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            release/*.exe
-            release/*.blockmap
+            release/Morphly-Voice-Console-Setup-*.exe
+            release/Morphly-Voice-Console-Setup-*.exe.blockmap
             release/latest.yml
