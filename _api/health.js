@@ -82,6 +82,7 @@ export default async function handler(req, res) {
       supabaseServiceRoleKeyValid: supabaseServiceKeyRole() === 'service_role',
       flutterwavePublicKey: Boolean(process.env.FLUTTERWAVE_PUBLIC_KEY),
       flutterwaveSecretKey: Boolean(process.env.FLUTTERWAVE_SECRET_KEY),
+      flutterwaveWebhookSecret: Boolean(process.env.FLUTTERWAVE_WEBHOOK_SECRET || process.env.FLW_SECRET_HASH),
     },
     supabase: includeDeepCheck ? await checkSupabase() : undefined,
     time: new Date().toISOString(),

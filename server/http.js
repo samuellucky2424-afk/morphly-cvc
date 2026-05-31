@@ -50,6 +50,37 @@ export async function readJsonBody(req) {
   return {};
 }
 
+export async function readRawBody(req) {
+  if (Buffer.isBuffer(req.body)) {
+    return req.body;
+  }
+
+  if (typeof req.body === 'string') {
+    return Buffer.from(req.body);
+  }
+
+  if (req.body && typeof req.body === 'object') {
+    return Buffer.from(JSON.stringify(req.body));
+  }
+
+  const chunks = [];
+  for await (const chunk of req) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+
+  return Buffer.concat(chunks);
+}
+
+export async function readRawJsonBody(req) {
+  const rawBody = await readRawBody(req);
+  const bodyText = rawBody.toString('utf8');
+
+  return {
+    rawBody,
+    payload: bodyText.trim() ? JSON.parse(bodyText) : {},
+  };
+}
+
 function decodeJwtPayload(token) {
   const payload = token?.split('.')?.[1];
 

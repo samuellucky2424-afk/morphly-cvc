@@ -16,6 +16,7 @@ const endpoints = [
   { source: '_api/account/profile.js', route: '/api/account/profile', output: 'account/profile.func' },
   { source: '_api/payments/create.js', route: '/api/payments/create', output: 'payments/create.func' },
   { source: '_api/payments/verify.js', route: '/api/payments/verify', output: 'payments/verify.func' },
+  { source: '_api/payments/webhook.js', route: '/api/payments/webhook', output: 'payments/webhook.func' },
   { source: '_api/usage/start.js', route: '/api/usage/start', output: 'usage/start.func' },
   { source: '_api/usage/stop.js', route: '/api/usage/stop', output: 'usage/stop.func' },
   { source: '_api/usage/tick.js', route: '/api/usage/tick', output: 'usage/tick.func' },
