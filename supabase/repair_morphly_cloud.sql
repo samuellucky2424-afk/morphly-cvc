@@ -4,6 +4,7 @@
 
 alter table public.subscriptionw alter column current_period_end drop not null;
 alter table public.paymentw add column if not exists tx_ref text;
+alter table public.creditw add column if not exists balance_after integer;
 
 grant usage on schema public to service_role;
 grant select, insert, update, delete on table public.userw to service_role;

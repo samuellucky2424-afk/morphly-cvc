@@ -3,6 +3,7 @@ import { getSupabaseAdmin, handleOptions, setCors, sendJson, supabaseServiceKeyR
 const TABLE_CHECKS = ['userw', 'walletw', 'creditw', 'subscriptionw', 'paymentw', 'usage_sessionw'];
 const COLUMN_CHECKS = {
   userw: 'id,email,display_name,voice_credits,created_at,updated_at',
+  creditw: 'id,user_id,amount,balance_after,transaction_type,description,provider,provider_reference,created_at',
   subscriptionw: 'id,user_id,plan_id,status,current_period_start,current_period_end,created_at,updated_at',
   paymentw: 'id,user_id,plan_id,amount,currency,credits,provider,provider_reference,tx_ref,status,raw_response,created_at,updated_at',
   usage_sessionw: 'id,user_id,status,started_at,ended_at,last_billed_at,billed_minutes,credits_spent,created_at,updated_at',
