@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
-import { findCreditPlan } from '../_lib/plans.js';
-import { ensureProfile, handleApiError, handleOptions, readJsonBody, requireUser, setCors, sendError, sendJson } from '../_lib/http.js';
+import { findCreditPlan } from '../../server/plans.js';
+import { ensureProfile, handleApiError, handleOptions, readJsonBody, requireUser, setCors, sendError, sendJson } from '../../server/http.js';
 
 function checkoutReference(planId, userId) {
   return `morphly-${planId}-${userId.slice(0, 8)}-${Date.now()}-${randomUUID()}`;

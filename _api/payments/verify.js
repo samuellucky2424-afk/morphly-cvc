@@ -1,5 +1,5 @@
-import { findCreditPlan } from '../_lib/plans.js';
-import { getAccountProfile, handleApiError, handleOptions, readJsonBody, requireUser, setCors, sendError, sendJson } from '../_lib/http.js';
+import { findCreditPlan } from '../../server/plans.js';
+import { getAccountProfile, handleApiError, handleOptions, readJsonBody, requireUser, setCors, sendError, sendJson } from '../../server/http.js';
 
 function moneyEquals(left, right) {
   return Math.round(Number(left) * 100) === Math.round(Number(right) * 100);

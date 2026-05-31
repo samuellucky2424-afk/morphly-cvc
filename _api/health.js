@@ -1,4 +1,4 @@
-import { handleOptions, setCors, sendJson } from './_lib/http.js';
+import { handleOptions, setCors, sendJson } from '../server/http.js';
 
 export default function handler(req, res) {
   if (handleOptions(req, res)) {

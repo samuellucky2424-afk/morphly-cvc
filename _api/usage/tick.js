@@ -1,5 +1,5 @@
-import { CREDITS_PER_STARTED_MINUTE } from '../_lib/plans.js';
-import { ensureProfile, getAccountProfile, handleApiError, handleOptions, requireUser, setCors, sendJson } from '../_lib/http.js';
+import { CREDITS_PER_STARTED_MINUTE } from '../../server/plans.js';
+import { getAccountProfile, handleApiError, handleOptions, readJsonBody, requireUser, setCors, sendError, sendJson } from '../../server/http.js';
 
 export default async function handler(req, res) {
   if (handleOptions(req, res)) {
@@ -16,10 +16,16 @@ export default async function handler(req, res) {
 
   try {
     const { supabase, user } = await requireUser(req);
-    await ensureProfile(supabase, user);
+    const body = await readJsonBody(req);
 
-    const { data, error } = await supabase.rpc('start_voice_usagew', {
+    if (!body.sessionId) {
+      sendError(res, 400, 'Missing usage session id.', 'USAGE_SESSION_REQUIRED');
+      return;
+    }
+
+    const { data, error } = await supabase.rpc('bill_voice_usagew', {
       target_user_id: user.id,
+      usage_session_id: body.sessionId,
       credits_per_minute: CREDITS_PER_STARTED_MINUTE,
     });
 

@@ -1,4 +1,4 @@
-import { ensureProfile, handleApiError, handleOptions, requireUser, setCors, sendJson } from '../_lib/http.js';
+import { ensureProfile, handleApiError, handleOptions, requireUser, setCors, sendJson } from '../../server/http.js';
 
 export default async function handler(req, res) {
   if (handleOptions(req, res)) {

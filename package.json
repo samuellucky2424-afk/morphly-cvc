@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
-    "build:vercel": "vite build --mode vercel --outDir public && node build/scripts/verify-vercel-output.mjs",
+    "build:vercel": "vite build --mode vercel && node build/scripts/verify-vercel-output.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "build:electron": "esbuild electron/main.ts electron/preload.ts --bundle --platform=node --format=cjs --outdir=dist-electron --out-extension:.js=.cjs --external:electron",
     "app:dev": "npm run build:electron && set ELECTRON_RENDERER_URL=http://127.0.0.1:5173&& electron .",
@@ -84,6 +84,7 @@
     "electron-builder": "^26.8.1",
     "esbuild": "^0.28.0",
     "postcss": "^8.4.49",
-    "tailwindcss": "^3.4.17"
+    "tailwindcss": "^3.4.17",
+    "vite-plugin-vercel": "^10.0.0"
   }
 }
