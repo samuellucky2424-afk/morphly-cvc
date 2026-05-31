@@ -1,5 +1,5 @@
 import { CREDITS_PER_STARTED_MINUTE } from '../_lib/plans.js';
-import { ensureProfile, handleApiError, handleOptions, requireUser, setCors, sendJson } from '../_lib/http.js';
+import { ensureProfile, getAccountProfile, handleApiError, handleOptions, requireUser, setCors, sendJson } from '../_lib/http.js';
 
 export default async function handler(req, res) {
   if (handleOptions(req, res)) {
@@ -25,6 +25,10 @@ export default async function handler(req, res) {
 
     if (error) {
       throw error;
+    }
+
+    if (data?.profile) {
+      data.profile = await getAccountProfile(supabase, user.id);
     }
 
     sendJson(res, 200, data);

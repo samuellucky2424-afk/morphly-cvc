@@ -198,8 +198,10 @@ create policy "usage_sessionw_select_own"
   on public.usage_sessionw for select to authenticated using (auth.uid() = user_id);
 
 drop function if exists public.increment_voice_creditsw(integer);
+drop function if exists public.apply_flutterwave_paymentw(uuid, text, numeric, text, integer, text, text, jsonb);
+drop function if exists public.apply_flutterwave_paymentw(uuid, text, numeric, text, integer, integer, text, text, jsonb);
 
-create or replace function public.apply_flutterwave_paymentw(target_user_id uuid, p_plan_id text, p_amount numeric, p_currency text, p_credits integer, p_provider_reference text, p_tx_ref text, p_raw_response jsonb)
+create or replace function public.apply_flutterwave_paymentw(target_user_id uuid, p_plan_id text, p_amount numeric, p_currency text, p_credits integer, p_subscription_days integer, p_provider_reference text, p_tx_ref text, p_raw_response jsonb)
 returns public.userw
 language plpgsql
 security definer
@@ -208,7 +210,11 @@ as $$
 declare
   locked_payment public.paymentw;
   updated_profile public.userw;
+  locked_subscription public.subscriptionw;
   credit_amount integer := greatest(0, coalesce(p_credits, 0));
+  subscription_days integer := greatest(0, coalesce(p_subscription_days, 0));
+  subscription_base timestamptz;
+  subscription_end timestamptz;
 begin
   select *
   into locked_payment
@@ -269,6 +275,29 @@ begin
     raise exception 'No userw profile found for payment user';
   end if;
 
+  if subscription_days > 0 then
+    select *
+    into locked_subscription
+    from public.subscriptionw
+    where user_id = target_user_id
+    for update;
+
+    subscription_base := greatest(now(), coalesce(locked_subscription.current_period_end, now()));
+    subscription_end := subscription_base + make_interval(days => subscription_days);
+
+    if locked_subscription.id is null then
+      insert into public.subscriptionw (user_id, plan_id, status, current_period_start, current_period_end)
+      values (target_user_id, p_plan_id, 'active', now(), subscription_end);
+    else
+      update public.subscriptionw
+      set plan_id = p_plan_id,
+          status = 'active',
+          current_period_start = now(),
+          current_period_end = subscription_end
+      where id = locked_subscription.id;
+    end if;
+  end if;
+
   if credit_amount > 0 then
     insert into public.creditw (
       user_id,
@@ -294,8 +323,8 @@ begin
 end;
 $$;
 
-revoke execute on function public.apply_flutterwave_paymentw(uuid, text, numeric, text, integer, text, text, jsonb) from public, anon, authenticated;
-grant execute on function public.apply_flutterwave_paymentw(uuid, text, numeric, text, integer, text, text, jsonb) to service_role;
+revoke execute on function public.apply_flutterwave_paymentw(uuid, text, numeric, text, integer, integer, text, text, jsonb) from public, anon, authenticated;
+grant execute on function public.apply_flutterwave_paymentw(uuid, text, numeric, text, integer, integer, text, text, jsonb) to service_role;
 
 create or replace function public.start_voice_usagew(target_user_id uuid, credits_per_minute integer default 2)
 returns jsonb
@@ -307,6 +336,7 @@ declare
   debit_amount integer := greatest(1, coalesce(credits_per_minute, 2));
   current_profile public.userw;
   updated_profile public.userw;
+  active_subscription public.subscriptionw;
   usage_id uuid;
 begin
   select *
@@ -317,6 +347,31 @@ begin
 
   if current_profile.id is null then
     return jsonb_build_object('ok', false, 'code', 'PROFILE_NOT_FOUND');
+  end if;
+
+  select *
+  into active_subscription
+  from public.subscriptionw
+  where user_id = target_user_id
+    and plan_id = 'unlimited_monthly'
+    and status = 'active'
+    and current_period_end > now()
+  limit 1;
+
+  if active_subscription.id is not null then
+    insert into public.usage_sessionw (user_id, billed_minutes, credits_spent, last_billed_at)
+    values (target_user_id, 1, 0, now())
+    returning id into usage_id;
+
+    return jsonb_build_object(
+      'ok', true,
+      'sessionId', usage_id,
+      'chargedCredits', 0,
+      'creditsPerMinute', debit_amount,
+      'subscriptionActive', true,
+      'subscriptionEndsAt', active_subscription.current_period_end,
+      'profile', to_jsonb(current_profile)
+    );
   end if;
 
   if current_profile.voice_credits < debit_amount then
@@ -359,6 +414,7 @@ declare
   current_profile public.userw;
   updated_profile public.userw;
   locked_session public.usage_sessionw;
+  active_subscription public.subscriptionw;
 begin
   select *
   into locked_session
@@ -377,6 +433,32 @@ begin
   from public.userw
   where id = target_user_id
   for update;
+
+  select *
+  into active_subscription
+  from public.subscriptionw
+  where user_id = target_user_id
+    and plan_id = 'unlimited_monthly'
+    and status = 'active'
+    and current_period_end > now()
+  limit 1;
+
+  if active_subscription.id is not null then
+    update public.usage_sessionw
+    set last_billed_at = now(),
+        billed_minutes = billed_minutes + 1
+    where id = usage_session_id;
+
+    return jsonb_build_object(
+      'ok', true,
+      'sessionId', usage_session_id,
+      'chargedCredits', 0,
+      'creditsPerMinute', debit_amount,
+      'subscriptionActive', true,
+      'subscriptionEndsAt', active_subscription.current_period_end,
+      'profile', to_jsonb(current_profile)
+    );
+  end if;
 
   if current_profile.voice_credits < debit_amount then
     update public.usage_sessionw

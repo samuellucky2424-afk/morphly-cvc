@@ -1,5 +1,5 @@
 import { findCreditPlan } from '../_lib/plans.js';
-import { handleApiError, handleOptions, readJsonBody, requireUser, setCors, sendError, sendJson } from '../_lib/http.js';
+import { getAccountProfile, handleApiError, handleOptions, readJsonBody, requireUser, setCors, sendError, sendJson } from '../_lib/http.js';
 
 function moneyEquals(left, right) {
   return Math.round(Number(left) * 100) === Math.round(Number(right) * 100);
@@ -84,15 +84,7 @@ export default async function handler(req, res) {
     }
 
     if (pendingPayment.status === 'successful') {
-      const { data: profile, error: profileError } = await supabase
-        .from('userw')
-        .select('id,email,display_name,voice_credits,created_at,updated_at')
-        .eq('id', user.id)
-        .single();
-
-      if (profileError) {
-        throw profileError;
-      }
+      const profile = await getAccountProfile(supabase, user.id);
 
       sendJson(res, 200, { profile, alreadyProcessed: true });
       return;
@@ -115,12 +107,13 @@ export default async function handler(req, res) {
       return;
     }
 
-    const { data: profile, error: applyError } = await supabase.rpc('apply_flutterwave_paymentw', {
+    const { error: applyError } = await supabase.rpc('apply_flutterwave_paymentw', {
       target_user_id: user.id,
       p_plan_id: plan.id,
       p_amount: plan.amount,
       p_currency: plan.currency,
       p_credits: plan.credits,
+      p_subscription_days: plan.subscriptionDays || 0,
       p_provider_reference: `${verified.id || transactionId}`,
       p_tx_ref: txRef,
       p_raw_response: verified,
@@ -130,7 +123,7 @@ export default async function handler(req, res) {
       throw applyError;
     }
 
-    sendJson(res, 200, { profile });
+    sendJson(res, 200, { profile: await getAccountProfile(supabase, user.id) });
   } catch (error) {
     handleApiError(res, error);
   }

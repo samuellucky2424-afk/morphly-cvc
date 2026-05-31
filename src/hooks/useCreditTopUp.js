@@ -24,8 +24,12 @@ export function useCreditTopUp({ user, displayName, displayEmail, onPaymentSucce
         name: displayName || displayEmail || 'Morphly User',
       },
       customizations: {
-        title: 'Morphly Voice Credits',
-        description: activePlan ? `${activePlan.name} plan - ${activePlan.credits.toLocaleString()} voice credits` : 'Voice credit top-up',
+        title: 'Morphly Voice Access',
+        description: activePlan
+          ? activePlan.kind === 'subscription'
+            ? `${activePlan.name} plan - unlimited voice conversion for ${activePlan.subscriptionDays} days`
+            : `${activePlan.name} plan - ${activePlan.credits.toLocaleString()} voice credits`
+          : 'Voice credit top-up',
         logo: '',
       },
     }),

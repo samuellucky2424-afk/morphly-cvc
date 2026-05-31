@@ -183,6 +183,7 @@ export function AuthProvider({ children }) {
     () => ({
       user,
       profile,
+      subscription: profile?.subscription || null,
       credits: profile?.voice_credits ?? 0,
       displayEmail: profile?.email || user?.email || '',
       displayName: profile?.display_name || user?.email?.split('@')[0] || 'Morphly User',

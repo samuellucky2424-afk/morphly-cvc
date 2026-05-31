@@ -1,5 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 
+const PROFILE_SELECT = 'id,email,display_name,voice_credits,created_at,updated_at';
+const SUBSCRIPTION_SELECT = 'id,user_id,plan_id,status,current_period_start,current_period_end,created_at,updated_at';
+const desktopOrigins = new Set(['http://127.0.0.1:5173', 'http://localhost:5173', 'null']);
+
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
   .split(',')
   .map((origin) => origin.trim())
@@ -7,12 +11,13 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
 
 export function setCors(req, res) {
   const origin = req.headers.origin || '*';
-  const allowedOrigin = allowedOrigins.length === 0 || allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
+  const allowedOrigin = allowedOrigins.length === 0 || allowedOrigins.includes(origin) || desktopOrigins.has(origin) ? origin : allowedOrigins[0];
 
   res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
   res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+  res.setHeader('Access-Control-Max-Age', '86400');
 }
 
 export function handleOptions(req, res) {
@@ -88,7 +93,7 @@ export async function requireUser(req) {
 export async function ensureProfile(supabase, user) {
   const { data: existingProfile, error: readError } = await supabase
     .from('userw')
-    .select('id,email,display_name,voice_credits,created_at,updated_at')
+    .select(PROFILE_SELECT)
     .eq('id', user.id)
     .maybeSingle();
 
@@ -97,7 +102,7 @@ export async function ensureProfile(supabase, user) {
   }
 
   if (existingProfile) {
-    return existingProfile;
+    return hydrateProfile(supabase, existingProfile);
   }
 
   const displayName = user.user_metadata?.display_name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'Morphly User';
@@ -110,14 +115,62 @@ export async function ensureProfile(supabase, user) {
   const { data, error } = await supabase
     .from('userw')
     .insert(seedProfile)
-    .select('id,email,display_name,voice_credits,created_at,updated_at')
+    .select(PROFILE_SELECT)
     .single();
 
   if (error) {
     throw error;
   }
 
-  return data;
+  return hydrateProfile(supabase, data);
+}
+
+export async function getAccountProfile(supabase, userId) {
+  const { data, error } = await supabase
+    .from('userw')
+    .select(PROFILE_SELECT)
+    .eq('id', userId)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return hydrateProfile(supabase, data);
+}
+
+async function hydrateProfile(supabase, profile) {
+  if (!profile?.id) {
+    return profile;
+  }
+
+  const { data: subscription, error } = await supabase
+    .from('subscriptionw')
+    .select(SUBSCRIPTION_SELECT)
+    .eq('user_id', profile.id)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  const periodEnd = subscription?.current_period_end ? new Date(subscription.current_period_end) : null;
+  const subscriptionActive = Boolean(
+    subscription?.status === 'active'
+      && subscription?.plan_id === 'unlimited_monthly'
+      && periodEnd
+      && periodEnd.getTime() > Date.now()
+  );
+
+  return {
+    ...profile,
+    subscription: subscription
+      ? {
+          ...subscription,
+          is_active: subscriptionActive,
+        }
+      : null,
+  };
 }
 
 export function handleApiError(res, error) {

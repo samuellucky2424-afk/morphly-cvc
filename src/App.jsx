@@ -126,10 +126,28 @@ function firstSelectableModelId(models) {
 }
 
 const plans = [
-  { id: 'basic', name: 'Basic', amount: 3500, currency: 'NGN', priceDisplay: 'NGN 3,500', credits: 180, accent: 'Starter voice experiments', meter: 32 },
-  { id: 'pro', name: 'Pro', amount: 9500, currency: 'NGN', priceDisplay: 'NGN 9,500', credits: 720, accent: 'Streaming and creators', meter: 68, featured: true },
-  { id: 'studio', name: 'Studio', amount: 24000, currency: 'NGN', priceDisplay: 'NGN 24,000', credits: 2400, accent: 'Teams and production', meter: 92 },
+  { id: 'credit_1000', name: '1,000 Credits', amount: 8000, currency: 'NGN', priceDisplay: 'NGN 8,000', credits: 1000, kind: 'credits', accent: 'Starter streaming pack', meter: 38 },
+  { id: 'credit_2000', name: '2,000 Credits', amount: 16000, currency: 'NGN', priceDisplay: 'NGN 16,000', credits: 2000, kind: 'credits', accent: 'Regular creator pack', meter: 62, featured: true },
+  { id: 'credit_5000', name: '5,000 Credits', amount: 40000, currency: 'NGN', priceDisplay: 'NGN 40,000', credits: 5000, kind: 'credits', accent: 'Production voice pack', meter: 88 },
+  { id: 'unlimited_monthly', name: 'Monthly Unlimited', amount: 60000, currency: 'NGN', priceDisplay: 'NGN 60,000', credits: 0, kind: 'subscription', subscriptionDays: 29, accent: 'Unlimited for 29 days', meter: 100 },
 ];
+
+function isUnlimitedSubscriptionActive(subscription) {
+  const expiresAt = subscription?.current_period_end ? new Date(subscription.current_period_end) : null;
+  return Boolean(subscription?.is_active || (subscription?.plan_id === 'unlimited_monthly' && subscription?.status === 'active' && expiresAt && expiresAt.getTime() > Date.now()));
+}
+
+function formatSubscriptionDate(value) {
+  if (!value) {
+    return '';
+  }
+
+  return new Date(value).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
 
 const bars = [42, 72, 36, 88, 54, 66, 94, 48, 78, 58, 84, 44, 68, 96, 52, 74, 40, 62];
 
@@ -191,6 +209,7 @@ function findFirstInputDevice(devices) {
 function App() {
   const {
     user,
+    subscription,
     credits,
     displayEmail,
     displayName,
@@ -246,6 +265,7 @@ function App() {
   const currentModel = useMemo(() => voiceModels.find((model) => model.id === selectedModel) || voiceModels[0] || emptyVoiceModel, [selectedModel, voiceModels]);
   const estimatedLatency = useMemo(() => Math.max(1, Math.round((chunk * 128 * 1000) / 48000)), [chunk]);
   const normalizedCredits = Math.max(0, Number(credits) || 0);
+  const hasActiveUnlimited = isUnlimitedSubscriptionActive(subscription);
   const selectedInputDevice = useMemo(
     () => audioDevices.inputs.find((device) => device.id === selectedInput) || null,
     [audioDevices.inputs, selectedInput]
@@ -625,7 +645,7 @@ function App() {
       return;
     }
 
-    if (!isLive && normalizedCredits < CREDITS_PER_STARTED_MINUTE) {
+    if (!isLive && !hasActiveUnlimited && normalizedCredits < CREDITS_PER_STARTED_MINUTE) {
       showToast(`Add voice credits before starting. Voice conversion costs ${CREDITS_PER_STARTED_MINUTE} credits per started minute.`, 'error');
       return;
     }
@@ -725,7 +745,7 @@ function App() {
     } finally {
       setEngineBusy(false);
     }
-  }, [applyProfile, audioDevices, chunk, currentModel, echoGuard, finishUsageSession, formant, handleEngineError, isLive, monitorOutput, normalizedCredits, pitch, qualityMode, selectedInput, selectedInputIsLoopback, selectedModel, selectedOutput, selectedOutputEchoProtected, selectedOutputNeedsMute, showToast, streamRouteActive, streamRouteBlocked]);
+  }, [applyProfile, audioDevices, chunk, currentModel, echoGuard, finishUsageSession, formant, handleEngineError, hasActiveUnlimited, isLive, monitorOutput, normalizedCredits, pitch, qualityMode, selectedInput, selectedInputIsLoopback, selectedModel, selectedOutput, selectedOutputEchoProtected, selectedOutputNeedsMute, showToast, streamRouteActive, streamRouteBlocked]);
 
   const handleModelSelect = useCallback(
     async (modelId) => {
@@ -929,6 +949,12 @@ function App() {
       if (profile) {
         applyProfile(profile);
       }
+      if (plan.kind === 'subscription') {
+        const expiresAt = profile?.subscription?.current_period_end ? ` Expires ${formatSubscriptionDate(profile.subscription.current_period_end)}.` : '';
+        showToast(`Monthly unlimited voice subscription activated.${expiresAt}`, 'success');
+        return;
+      }
+
       showToast(`${(plan.credits ?? 0).toLocaleString()} voice credits added.`, 'success');
     },
     [applyProfile, showToast]
@@ -947,6 +973,8 @@ function App() {
       return (
         <CreditsView
           credits={normalizedCredits}
+          subscription={subscription}
+          hasActiveUnlimited={hasActiveUnlimited}
           plans={plans}
           onBuyPlan={startPayment}
           activePlanId={activePlanId}
@@ -961,6 +989,7 @@ function App() {
           displayName={displayName}
           displayEmail={displayEmail}
           credits={normalizedCredits}
+          subscription={subscription}
           voiceModels={voiceModels}
           preferences={preferences}
           setPreferences={setPreferences}
@@ -1084,12 +1113,12 @@ function App() {
                     <span className={`h-1.5 w-1.5 rounded-full ${user ? 'bg-teal-300 shadow-glow' : 'bg-slate-600'}`} />
                   </div>
                   <p className="truncate text-xs font-semibold">{displayEmail || 'Not signed in'}</p>
-                  <p className="mt-0.5 text-[10px] text-amber-100">{normalizedCredits.toLocaleString()} credits</p>
+                  <p className="mt-0.5 text-[10px] text-amber-100">{hasActiveUnlimited ? 'Unlimited active' : `${normalizedCredits.toLocaleString()} credits`}</p>
                 </>
               ) : (
                 <div className="flex flex-col items-center gap-1">
                   <span className={`h-1.5 w-1.5 rounded-full ${user ? 'bg-teal-300' : 'bg-slate-600'}`} />
-                  <span className="text-[9px] font-semibold text-amber-100">{normalizedCredits >= 1000 ? `${(normalizedCredits / 1000).toFixed(0)}k` : normalizedCredits}c</span>
+                  <span className="text-[9px] font-semibold text-amber-100">{hasActiveUnlimited ? 'UNL' : `${normalizedCredits >= 1000 ? `${(normalizedCredits / 1000).toFixed(0)}k` : normalizedCredits}c`}</span>
                 </div>
               )}
             </div>
@@ -1920,7 +1949,9 @@ function PathRow({ icon: Icon, label, state }) {
   );
 }
 
-const CreditsView = memo(function CreditsView({ credits, plans, onBuyPlan, activePlanId, isPaymentConfigured }) {
+const CreditsView = memo(function CreditsView({ credits, subscription, hasActiveUnlimited, plans, onBuyPlan, activePlanId, isPaymentConfigured }) {
+  const subscriptionExpiry = formatSubscriptionDate(subscription?.current_period_end);
+
   return (
     <div className="space-y-4">
       <section className="grid grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] gap-3.5">
@@ -1929,7 +1960,9 @@ const CreditsView = memo(function CreditsView({ credits, plans, onBuyPlan, activ
             <div>
               <p className="text-xs text-slate-500">Current Balance</p>
               <h2 className="mt-1 text-3xl font-semibold tracking-tight">{credits.toLocaleString()}</h2>
-              <p className="mt-1 text-[11px] text-teal-100">Voice credits available</p>
+              <p className="mt-1 text-[11px] text-teal-100">
+                {hasActiveUnlimited ? `Unlimited active${subscriptionExpiry ? ` until ${subscriptionExpiry}` : ''}` : 'Voice credits available'}
+              </p>
             </div>
             <div className="flex h-12 w-12 items-center justify-center rounded bg-amber-300/12 text-amber-100 ring-1 ring-amber-200/20">
               <CircleDollarSign size={20} />
@@ -1965,7 +1998,7 @@ const CreditsView = memo(function CreditsView({ credits, plans, onBuyPlan, activ
         </div>
       </section>
 
-      <section className="grid grid-cols-3 gap-3.5">
+      <section className="grid grid-cols-2 gap-3.5 xl:grid-cols-4">
         {plans.map((plan) => (
           <article
             key={plan.id}
@@ -1979,7 +2012,9 @@ const CreditsView = memo(function CreditsView({ credits, plans, onBuyPlan, activ
               {plan.featured && <span className="rounded bg-teal-300 px-1.5 py-0.5 text-[9px] font-semibold text-slate-950">Popular</span>}
             </div>
             <p className="mb-1 text-2xl font-semibold">{plan.priceDisplay}</p>
-              <p className="mb-3.5 text-xs text-slate-400">{plan.credits.toLocaleString()} voice credits</p>
+            <p className="mb-3.5 text-xs text-slate-400">
+              {plan.kind === 'subscription' ? `Unlimited for ${plan.subscriptionDays} days` : `${plan.credits.toLocaleString()} voice credits`}
+            </p>
             <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-slate-800">
               <div className="h-full rounded-full bg-gradient-to-r from-teal-300 to-amber-300" style={{ width: `${plan.meter}%` }} />
             </div>
@@ -2013,8 +2048,10 @@ const CreditsView = memo(function CreditsView({ credits, plans, onBuyPlan, activ
   );
 });
 
-function SettingsView({ displayName, displayEmail, credits, voiceModels, preferences, setPreferences, saveProfile, showToast }) {
+function SettingsView({ displayName, displayEmail, credits, subscription, voiceModels, preferences, setPreferences, saveProfile, showToast }) {
   const [profileForm, setProfileForm] = useState({ name: displayName, email: displayEmail });
+  const hasActiveUnlimited = isUnlimitedSubscriptionActive(subscription);
+  const subscriptionExpiry = formatSubscriptionDate(subscription?.current_period_end);
 
   useEffect(() => {
     setProfileForm({ name: displayName, email: displayEmail });
@@ -2039,7 +2076,7 @@ function SettingsView({ displayName, displayEmail, credits, voiceModels, prefere
               <h2 className="text-sm font-semibold">Profile</h2>
             </div>
             <span className="rounded border border-amber-300/20 bg-amber-300/10 px-2 py-0.5 text-[10px] text-amber-100">
-              {credits.toLocaleString()} credits
+              {hasActiveUnlimited ? `Unlimited${subscriptionExpiry ? ` until ${subscriptionExpiry}` : ''}` : `${credits.toLocaleString()} credits`}
             </span>
           </div>
           <SettingsInput label="Display Name" value={profileForm.name} onChange={(value) => setProfileForm((current) => ({ ...current, name: value }))} />

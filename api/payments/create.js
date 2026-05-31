@@ -53,6 +53,8 @@ export default async function handler(req, res) {
         amount: plan.amount,
         currency: plan.currency,
         credits: plan.credits,
+        kind: plan.kind,
+        subscriptionDays: plan.subscriptionDays || 0,
         planId: plan.id,
         publicKey: process.env.FLUTTERWAVE_PUBLIC_KEY || '',
       },
