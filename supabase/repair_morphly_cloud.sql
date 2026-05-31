@@ -13,6 +13,8 @@ grant select, insert, update, delete on table public.subscriptionw to service_ro
 grant select, insert, update, delete on table public.paymentw to service_role;
 grant select, insert, update, delete on table public.usage_sessionw to service_role;
 
+grant execute on all functions in schema public to service_role;
+
 do $$
 begin
   if to_regprocedure('public.apply_flutterwave_paymentw(uuid,text,numeric,text,integer,integer,text,text,jsonb)') is not null then
