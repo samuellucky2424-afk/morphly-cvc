@@ -19,7 +19,11 @@ The script creates `build/backend-payload.zip`, bundles it into the installer, a
 
 ## GitHub Actions Release Build
 
-GitHub Actions builds from a clean checkout, so it cannot see the local ignored backend folders. Before pushing a release tag, upload a prebuilt `backend-payload.zip` to a downloadable location and set this repository secret:
+GitHub Actions builds from a clean checkout, so it cannot see the local ignored backend folders. The repository tracks `build/backend-payload.zip` through Git LFS so tagged release builds can fetch the backend payload automatically.
+
+When the backend engine changes, rebuild the local release once, commit the updated `build/backend-payload.zip` LFS pointer, then push the new app version tag.
+
+As a fallback, you can upload a prebuilt `backend-payload.zip` to a downloadable location and set this repository secret:
 
 - `MORPHLY_BACKEND_PAYLOAD_URL`: direct URL for the zip payload.
 
@@ -35,4 +39,4 @@ The tagged release workflow downloads that payload, bundles it into the installe
 
 ## Notes
 
-Do not remove `backend-payload.zip` from `.gitignore`. Use a fresh version tag whenever release workflow code changes, because GitHub Actions runs the workflow from the tagged commit.
+Use a fresh version tag whenever release workflow code changes, because GitHub Actions runs the workflow from the tagged commit.

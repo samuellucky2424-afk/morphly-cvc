@@ -95,7 +95,8 @@ This installer needs Beatrice engine assets, but this checkout does not have:
   backend\voice-mode\manifest.json
 
 For local release builds, keep those folders under backend\ and run npm run dist:win again.
-For GitHub Actions, upload a prebuilt backend-payload.zip somewhere private/public and set:
+For GitHub Actions, commit build\backend-payload.zip through Git LFS, or upload a
+prebuilt backend-payload.zip somewhere private/public and set:
   MORPHLY_BACKEND_PAYLOAD_URL
 If the URL needs an Authorization header, also set:
   MORPHLY_BACKEND_PAYLOAD_AUTH_HEADER
